@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 
 	"golang.org/x/net/context"
@@ -15,10 +16,7 @@ const (
 
 type server struct{}
 
-func (s *server) Calculate(ctx context.Context, p *CalculatorParameter) (*CalculatorResult, error) {
-	op1 := p.OperandA
-	op2 := p.OperandB
-	opcode := p.OperCode
+func (s *server) doCalculate(op1, op2 float64, opcode CalculatorParameter_OperatorCode) float64 {
 	var result float64
 	switch opcode {
 	case CalculatorParameter_ADD:
@@ -36,7 +34,35 @@ func (s *server) Calculate(ctx context.Context, p *CalculatorParameter) (*Calcul
 	default:
 		result = 0
 	}
+	return result
+}
+
+func (s *server) Calculate(ctx context.Context, p *CalculatorParameter) (*CalculatorResult, error) {
+	op1 := p.OperandA
+	op2 := p.OperandB
+	opcode := p.OperCode
+	result := s.doCalculate(op1, op2, opcode)
 	return &CalculatorResult{Result: result}, nil
+}
+
+func (s *server) StreamCalculate(stream CalculateServicer_StreamCalculateServer) error {
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		op1 := in.OperandA
+		op2 := in.OperandB
+		opcode := in.OperCode
+		result := s.doCalculate(op1, op2, opcode)
+		out := &CalculatorResult{Result: result}
+		if err := stream.Send(out); err != nil {
+			return nil
+		}
+	}
 }
 
 func startServer(address string) {
