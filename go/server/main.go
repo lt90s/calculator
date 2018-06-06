@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -65,12 +66,21 @@ func (s *server) StreamCalculate(stream CalculateServicer_StreamCalculateServer)
 	}
 }
 
+func timeInterceptor(ctx context.Context, req interface{},
+	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	now := time.Now()
+	rsp, err := handler(ctx, req)
+	elapse := time.Since(now)
+	fmt.Printf("rpc calls %s elpased %s\n", info.FullMethod, elapse)
+	return rsp, err
+}
+
 func startServer(address string) {
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		panic(fmt.Sprintf("listen %s error %v", address, err))
 	}
-	gs := grpc.NewServer()
+	gs := grpc.NewServer(grpc.UnaryInterceptor(timeInterceptor))
 	RegisterCalculateServicerServer(gs, &server{})
 	reflection.Register(gs)
 	gs.Serve(l)
