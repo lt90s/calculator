@@ -4,6 +4,7 @@ package calculator;
 
 service CalculateServicer {
     rpc calculate(CalculatorParameter) returns (CalculatorResult) {}
+    rpc streamCalculate(stream CalculatorParameter) returns (stream CalculatorResult) {}
 }
 
 message CalculatorParameter {
